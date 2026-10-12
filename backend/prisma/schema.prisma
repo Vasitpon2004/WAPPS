@@ -1,0 +1,12 @@
+// Prisma 7: URL ของฐานข้อมูลอยู่ใน prisma.config.ts ไม่ได้อยู่ในไฟล์นี้
+// model ทั้งหมดได้มาจาก `npm run db:pull` (prisma db pull) อย่าแก้ด้วยมือ
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+ 
+datasource db {
+  provider = "postgresql"
+}
