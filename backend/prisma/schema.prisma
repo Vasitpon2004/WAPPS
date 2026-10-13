@@ -1,12 +1,224 @@
-// Prisma 7: URL ของฐานข้อมูลอยู่ใน prisma.config.ts ไม่ได้อยู่ในไฟล์นี้
-// model ทั้งหมดได้มาจาก `npm run db:pull` (prisma db pull) อย่าแก้ด้วยมือ
-
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+  moduleFormat    = "cjs"
 }
- 
+
 datasource db {
   provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model appointments {
+  id               Int             @id @default(autoincrement())
+  section_id       Int
+  created_by       Int
+  title            String          @db.VarChar(255)
+  appointment_date DateTime        @db.Date
+  start_time       DateTime        @db.Time(6)
+  end_time         DateTime        @db.Time(6)
+  building         String?         @db.VarChar(20)
+  room             String?         @db.VarChar(10)
+  status           String          @default("นัดหมาย") @db.VarChar(20)
+  created_at       DateTime        @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime        @default(now()) @db.Timestamptz(6)
+  users            users           @relation(fields: [created_by], references: [id], onUpdate: NoAction)
+  course_sections  course_sections @relation(fields: [section_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_by], map: "idx_appointments_creator")
+  @@index([appointment_date, start_time, end_time], map: "idx_appointments_date_active", where: raw("((status)::text = 'นัดหมาย'::text)"))
+  @@index([section_id], map: "idx_appointments_section")
+}
+
+model course_members {
+  id              Int             @id @default(autoincrement())
+  section_id      Int
+  student_id      Int
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  course_sections course_sections @relation(fields: [section_id], references: [id], onUpdate: NoAction)
+  users           users           @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([section_id, student_id], map: "uq_section_members")
+  @@index([student_id], map: "idx_course_members_student")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model course_professors {
+  id              Int             @id @default(autoincrement())
+  section_id      Int
+  professor_email String          @db.VarChar(255)
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  course_sections course_sections @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([section_id, professor_email], map: "uq_section_professor")
+  @@index([professor_email], map: "idx_course_professors_email")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model course_schedules {
+  id              Int             @id @default(autoincrement())
+  section_id      Int
+  day             String?         @db.VarChar(10)
+  start_time      DateTime?       @db.Time(6)
+  end_time        DateTime?       @db.Time(6)
+  room            String?         @db.VarChar(10)
+  building        String?         @db.VarChar(10)
+  created_at      DateTime        @default(now()) @db.Timestamptz(6)
+  course_sections course_sections @relation(fields: [section_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([day, start_time, end_time], map: "idx_schedules_day_time")
+  @@index([section_id], map: "idx_schedules_section")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model course_sections {
+  id                Int                 @id @default(autoincrement())
+  course_id         Int
+  semester_id       Int
+  section           String              @db.VarChar(5)
+  section_type      String              @default("บรรยาย") @db.VarChar(10)
+  capacity          Int
+  created_at        DateTime            @default(now()) @db.Timestamptz(6)
+  updated_at        DateTime            @default(now()) @db.Timestamptz(6)
+  appointments      appointments[]
+  course_members    course_members[]
+  course_professors course_professors[]
+  course_schedules  course_schedules[]
+  courses           courses             @relation(fields: [course_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  semesters         semesters           @relation(fields: [semester_id], references: [id], onUpdate: NoAction)
+
+  @@unique([course_id, semester_id, section], map: "uq_sections_course_in_semester")
+  @@index([course_id], map: "idx_sections_course")
+  @@index([semester_id], map: "idx_sections_semester")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model courses {
+  id              Int               @id @default(autoincrement())
+  course_code     String            @unique @db.Char(8)
+  course_name     String            @db.VarChar(255)
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at      DateTime          @default(now()) @db.Timestamptz(6)
+  course_sections course_sections[]
+}
+
+model faculties {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  majors     majors[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model holidays {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(255)
+  start_date   DateTime @db.Date
+  end_date     DateTime @db.Date
+  holiday_type String   @db.VarChar(20)
+  is_no_class  Boolean  @default(true)
+  created_at   DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([start_date, end_date], map: "idx_holidays_range")
+}
+
+model majors {
+  id         Int       @id @default(autoincrement())
+  faculty_id Int
+  name       String    @db.VarChar(80)
+  created_at DateTime  @default(now()) @db.Timestamptz(6)
+  faculties  faculties @relation(fields: [faculty_id], references: [id], onUpdate: NoAction)
+  users      users[]
+
+  @@unique([faculty_id, name], map: "uq_majors_faculty_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model otp_verify {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  code_hash  String   @db.VarChar(255)
+  expires_at DateTime @db.Timestamptz(6)
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, is_used, created_at(sort: Desc)], map: "idx_otp_user_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model password_reset_tokens {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  token_hash String   @unique @db.VarChar(255)
+  expires_at DateTime @db.Timestamptz(6)
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model semesters {
+  id              Int               @id @default(autoincrement())
+  name            String            @unique @db.VarChar(10)
+  start_date      DateTime          @db.Date
+  end_date        DateTime          @db.Date
+  is_current      Boolean           @unique(map: "uq_semesters_one_current_only", where: raw("is_current")) @default(false)
+  created_at      DateTime          @default(now()) @db.Timestamptz(6)
+  course_sections course_sections[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model student_busy_times {
+  id         Int      @id @default(autoincrement())
+  student_id Int
+  busy_date  DateTime @db.Date
+  start_time DateTime @db.Time(6)
+  end_time   DateTime @db.Time(6)
+  reason     String   @db.VarChar(255)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [student_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([busy_date], map: "idx_busy_date")
+  @@index([student_id, busy_date], map: "idx_busy_student_date")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model system_logs {
+  id          Int      @id @default(autoincrement())
+  actor_id    Int?
+  type_action String   @db.VarChar(30)
+  detail      Json?
+  created_at  DateTime @default(now()) @db.Timestamptz(6)
+  users       users?   @relation(fields: [actor_id], references: [id], onUpdate: NoAction)
+
+  @@index([actor_id], map: "idx_logs_actor")
+  @@index([created_at(sort: Desc)], map: "idx_logs_created")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                    Int                     @id @default(autoincrement())
+  email                 String                  @unique @db.VarChar(255)
+  password_hash         String                  @db.VarChar(255)
+  full_name             String                  @db.VarChar(150)
+  role                  String                  @db.VarChar(20)
+  student_code          String?                 @unique @db.VarChar(15)
+  professor_code        String?                 @unique @db.VarChar(6)
+  major_id              Int?
+  is_verify             Boolean                 @default(false)
+  is_active             Boolean                 @default(true)
+  discord_id            String?                 @unique @db.VarChar(32)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  appointments          appointments[]
+  course_members        course_members[]
+  otp_verify            otp_verify[]
+  password_reset_tokens password_reset_tokens[]
+  student_busy_times    student_busy_times[]
+  system_logs           system_logs[]
+  majors                majors?                 @relation(fields: [major_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([role], map: "idx_users_role")
 }

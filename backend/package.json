@@ -76,7 +76,5 @@
     ],
     "coverageDirectory": "../coverage",
     "testEnvironment": "node"
-  },
-    "db:pull": "prisma db pull && prisma generate",
-    "db:generate": "prisma generate"
+  }
 }
