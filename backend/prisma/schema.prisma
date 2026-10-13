@@ -1,12 +1,81 @@
-// Prisma 7: URL ของฐานข้อมูลอยู่ใน prisma.config.ts ไม่ได้อยู่ในไฟล์นี้
-// model ทั้งหมดได้มาจาก `npm run db:pull` (prisma db pull) อย่าแก้ด้วยมือ
-
 generator client {
-  provider     = "prisma-client"
-  output       = "../src/generated/prisma"
-  moduleFormat = "cjs"
+  provider        = "prisma-client"
+  output          = "../src/generated/prisma"
+  previewFeatures = ["partialIndexes"]
+  moduleFormat    = "cjs"
 }
- 
+
 datasource db {
   provider = "postgresql"
+}
+
+model faculties {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(50)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  majors     majors[]
+}
+
+model majors {
+  id         Int       @id @default(autoincrement())
+  faculty_id Int
+  name       String    @db.VarChar(80)
+  faculties  faculties @relation(fields: [faculty_id], references: [id], onUpdate: NoAction)
+  users      users[]
+
+  @@unique([faculty_id, name], map: "uq_majors_faculty_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model otp_verify {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  code_hash  String   @db.VarChar(255)
+  expires_at DateTime @db.Timestamptz(6)
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([user_id, is_used, created_at(sort: Desc)], map: "idx_otp_user_created")
+}
+
+model password_reset_tokens {
+  id         Int      @id @default(autoincrement())
+  user_id    Int
+  token_hash String   @unique @db.VarChar(64)
+  expires_at DateTime @db.Timestamptz(6)
+  is_used    Boolean  @default(false)
+  created_at DateTime @default(now()) @db.Timestamptz(6)
+  users      users    @relation(fields: [user_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model semesters {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique @db.VarChar(50)
+  start_date DateTime @db.Date
+  end_date   DateTime @db.Date
+  is_current Boolean  @unique(map: "uq_semesters_current", where: raw("is_current")) @default(false)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model users {
+  id                    Int                     @id @default(autoincrement())
+  email                 String                  @unique @db.VarChar(255)
+  password_hash         String                  @db.VarChar(255)
+  full_name             String                  @db.VarChar(150)
+  role                  String                  @db.VarChar(20)
+  student_code          String?                 @unique @db.VarChar(15)
+  professor_code        String?                 @unique @db.VarChar(6)
+  major_id              Int?
+  is_verified           Boolean                 @default(false)
+  is_active             Boolean                 @default(true)
+  discord_id            String?                 @unique @db.VarChar(32)
+  created_at            DateTime                @default(now()) @db.Timestamptz(6)
+  updated_at            DateTime                @default(now()) @db.Timestamptz(6)
+  otp_verify            otp_verify[]
+  password_reset_tokens password_reset_tokens[]
+  majors                majors?                 @relation(fields: [major_id], references: [id], onDelete: Restrict, onUpdate: NoAction)
+
+  @@index([role], map: "idx_users_role")
 }

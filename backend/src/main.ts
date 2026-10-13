@@ -3,6 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 import { createValidationPipe } from './common/utils/validation';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -13,6 +14,16 @@ async function bootstrap() {
   app.useGlobalPipes(createValidationPipe());
   app.useGlobalFilters(new AllExceptionsFilter());
   app.enableShutdownHooks();
+  
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('WAPPS API')
+    .addBearerAuth()
+    .addSecurityRequirements('bearer')
+    .build();
+  SwaggerModule.setup('api', app, () =>
+    SwaggerModule.createDocument(app, swaggerConfig),
+    { swaggerOptions: { persistAuthorization: true } },
+  );
 
   const port = Number(config.get('PORT') ?? 3000);
   await app.listen(port);
