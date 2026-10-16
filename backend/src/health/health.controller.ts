@@ -19,9 +19,13 @@ export class HealthController {
       today: todayInBangkok(),
       current_semester: semester && {
         id: semester.id,
-        name: semester.name,
-        start_date: fromDbDate(semester.start_date),
-        end_date: fromDbDate(semester.end_date),
+        name: semester.term,
+        start_date: fromDbDate(semester.open_date),
+        end_date: fromDbDate(semester.close_date),
+        midterm_start: fromDbDate(semester.midterm_start),
+        midterm_end: fromDbDate(semester.midterm_end),
+        final_start: fromDbDate(semester.final_start),
+        final_end: fromDbDate(semester.final_end)
       },
     };
   }
